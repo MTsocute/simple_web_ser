@@ -15,21 +15,13 @@
 #include <chrono>
 #include <cstdint>
 
-//
-int createListeningSocket(int port);
+#define PORT 10000 // 监听端口，如果你是云服务器，请确保打开服务端的防火墙
 
-//
-int acceptClientConnection(int lfd);
+int get_server_listening_socket(const int port);
 
-// 处理与客户端的通信
-void handleClientCommunication(int cfd);
+int accept_client_connection(const int server_fd);
 
-// 主服务器逻辑
-void startServer(int port);
+void server_contact_with_client(const int client_fd);
 
-
-// 延迟函数
-void delay_X_Second(uint8_t X_sec);
 
 #endif //SERVER_H
-    

@@ -4,130 +4,100 @@
 
 #include "Server.h"
 
-static bool KEEP_SERVER = true;
-
-/**
- * @brief 延迟 X 秒
- * @param X_sec 多少秒 0 ~ 255
- * */ 
-void delay_X_Second(uint8_t X_sec) {
-    std::this_thread::sleep_for(std::chrono::seconds(X_sec));
-}
+bool KEEP_SERVER = true;
+bool SHUT_SERVER = false;
 
 /**
  * @brief 创建监听套接字
  * @param port 监听用的端口
  * @return ldf 服务端 socket
  */
-int createListeningSocket(int port) {
-    int lfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (lfd == -1) {
-        perror("socket");
-        return -1;
+int get_server_listening_socket(const int port) {
+    int server_fd;
+    struct sockaddr_in address;
+
+    // 创建服务端 socket
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port); // 使用指定端口
-    addr.sin_addr.s_addr = INADDR_ANY;
+    socklen_t addrlen = sizeof(address);
+    // 设置服务端地址
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(port);
 
-    int ret = bind(lfd, (struct sockaddr *) &addr, sizeof(addr));
-    if (ret == -1) {
-        perror("bind");
-        close(lfd);
-        return -1;
+    // 绑定 socket 地址
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
     }
 
-    ret = listen(lfd, 128);
-    if (ret == -1) {
-        perror("listen");
-        close(lfd);
-        return -1;
+    // 监听客户端连接
+    if (listen(server_fd, 3) < 0) {
+        perror("listen failed");
+        exit(EXIT_FAILURE);
     }
 
-    return lfd;
+    return server_fd;
 }
 
 /**
  * @brief 开启服务端监听等待连接
- * @param lfd createListeningSocket 的返回值
- * @return 
+ * @param server_fd 服务端的套接字
+ * @return 连接成功返回客户端套接字，不然就是 -1 
  */
-int acceptClientConnection(int lfd) {
-    struct sockaddr_in cliaddr;
-    socklen_t clilen = sizeof(cliaddr);
-    int cfd = accept(lfd, (struct sockaddr *) &cliaddr, &clilen);
-    if (cfd == -1) {
-        perror("accept");
+int accept_client_connection(const int server_fd) {
+    struct sockaddr_in cli_addr;       // 用于接受客户端的信息
+    socklen_t cli_len = sizeof(cli_addr);
+    // 获取客户端的信息
+    int client_fd = accept(server_fd, (sockaddr *)&cli_addr, &cli_len);
+    if (client_fd == -1) {
         return -1;
     }
 
-    std::cout << "客户端连接成功，IP: " << inet_ntoa(cliaddr.sin_addr)
-            << ", Port: " << ntohs(cliaddr.sin_port) << std::endl;
-    return cfd;
+    // 输出客户端的配置
+    std::cout << "Client connected From IP: " << inet_ntoa(cli_addr.sin_addr)
+            << " - Port: " << ntohs(cli_addr.sin_port) << std::endl;
+    
+    // 返回客户端的套接字
+    return client_fd;
 }
 
-/**
- * @brief 和客户端保持通信，客户端如果使用 EXIT 会结束服务端的服务
- * @param cfd
- */
-void handleClientCommunication(int cfd) {
-    while (true) {
-        std::vector<char> buf(1024);
-        auto len = recv(cfd, buf.data(), buf.size(), 0);
-        auto message = std::string(buf.data(), len);
-        if (len > 0) {
-            if (message == "QUIT") {
-                std::cout << "客户端退出，监听新的客户端..." << std::endl;
-                delay_X_Second(1);      // 确保客户端先结束，防止报错
-                break;
-            } else if (message == "EXIT") {
-                std::cout << "服务端关闭..." << std::endl;
-                KEEP_SERVER = false;
-                delay_X_Second(1);
-                break;
-            } else {
-                std::cout << "客户端say: " << message << std::endl;
-                std::string reply = "Server Receive: " + message + "\n";
-                send(cfd, reply.c_str(), reply.size(), 0);
-            }
-        } else if (len == 0) {
-            std::cout << "客户端断开了连接..." << std::endl;
-            break;
-        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            std::cout << "客户端强制退出，连接重置，等待下一个连接...\n";
-            break;
-        } else {
-            perror("read");
-            break;
-        }
-    }
-}
 
 /**
- * @brief 主要逻辑函数，开启服务器
- * @param port 开启服务器的具体端口
+ * @brief 进行客户端和服务器的交互
+ * @param client_fd 客户端的套接字
  */
-void startServer(int port) {
-    int lfd = createListeningSocket(port);      // 服务端
-    if (lfd == -1) {
-        std::cerr << "无法创建监听套接字，程序退出。" << std::endl;
-        return;
-    }
+void server_contact_with_client(const int client_fd) {
+    std::vector<char> buf(1024);
+    int recv_status = recv(client_fd, buf.data(), buf.size(), 0);
+    
+    // 根据客户端不同的响应状态做出回复
+    if (recv_status > 0) {
+        // 输出客户端发送的内容
+        int msg_len = std::move(recv_status);
+        auto msg_from_client = std::string(buf.begin(), buf.begin() + msg_len);
 
-    std::cout << "服务端已开启..." << std::endl;
+        std::cout << "Client Say: " 
+            << msg_from_client << std::endl;
 
-    while (KEEP_SERVER) {
-        int cfd = acceptClientConnection(lfd);      // 客户端
-        if (cfd == -1) {
-            continue;
+        if (msg_from_client == "shutdown") {
+            KEEP_SERVER = false;
+            SHUT_SERVER = true;
+            msg_from_client = "Server is going to shutdown..."; // 回复要退出了
+            std::cout << msg_from_client << std::endl;
         }
-
-        // 每一次和客户端建立的连接之后，告诉客户端我们建立起连接了
-        send(cfd, "Server OK!", 10, 0);
-        handleClientCommunication(cfd);
-        close(cfd);
+        // 回复客户端接收到对应的数据了
+        send(client_fd, msg_from_client.c_str(), msg_from_client.size(), 0);
     }
-
-    close(lfd);
+    else if (recv_status == 0) {
+        std::cout << "Client Disconnecting ...\n";
+        KEEP_SERVER = false;        // 客户端断开连接的时候让保持对话结束
+    }
+    else {
+        perror("No Data Receive");
+        KEEP_SERVER = false;
+    }
 }
