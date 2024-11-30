@@ -1,40 +1,39 @@
 #include "Client.h"
 
-extern bool KEEP_CONNECTED;
-
 int main() {
-    int client_sockfd = 0;
-    sockaddr_in serv_addr{};
+    // 创建一个简单的客户端
 
-    // 创建客户端 socket
-    if ((client_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Socket creation failed");
-        return -1;
+    // 1. 创建套接字
+    int client_sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    if (client_sockfd == -1) {
+        error_handling("Socket Error\n");
     }
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
+    // 2. 配置服务器的 addrsock_in 
+    sockaddr_in server_addr;
+    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
 
-    // 将 IP 地址从字符串转换为网络字节序
-    if (inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr) <= 0) {
-        perror("Invalid address or address not supported");
-        return -1;
-    }
+    // 3. 连接到服务器
+    if (connect(client_sockfd, (sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        error_handling("Connect Error");
+    } else { std::cout << "Conneted with Server\n"; }
 
-    // 连接到服务端
-    if (connect(client_sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Connection failed");
-        return -1;
-    }
+    // 4. 发送数据
+    std::vector<char> msg(1024);
+    msg.clear();
+    auto send_len = send(client_sockfd, msg.data(), msg.size(), 0);
+    if (send_len == -1) { error_handling("Send Error"); }
 
-    std::cout << "Connected to server " << SERVER_IP << " : " << PORT << std::endl;
+    // 5. 等待服务器的回应
+    msg.clear();
+    auto recv_len = recv(client_sockfd, msg.data(), msg.size(), 0);
+    if (recv_len == -1) { error_handling("Receive Error"); }
 
-    // 维持服务端和客户端对话，除非自己手动退出
-    while (KEEP_CONNECTED) {
-        client_contact_with_server(client_sockfd);
-    }
 
-    // 关闭客户端 socket
+    // 6. 完成一次简单通讯，关闭通信
     close(client_sockfd);
+
     return 0;
 }

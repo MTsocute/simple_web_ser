@@ -15,13 +15,11 @@
 #include <chrono>
 #include <cstdint>
 
-#define PORT 10000 // 监听端口，如果你是云服务器，请确保打开服务端的防火墙
+// 监听端口，如果你是云服务器，请确保打开服务端的防火墙
+# define PORT 10000
 
-int get_server_listening_socket(const int port);
 
-int accept_client_connection(const int server_fd);
-
-void server_contact_with_client(const int client_fd);
+void error_handling(const std::string &message);
 
 
 #endif //SERVER_H

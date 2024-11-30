@@ -1,41 +1,60 @@
 #include "Server.h"
 
-extern bool KEEP_SERVER;
-extern bool SHUT_SERVER;
-
 int main() {
-    int server_fd, client_fd;
-    // 1. 配置好服务端的套接字和设置
-    server_fd = get_server_listening_socket(PORT);
+    // 1. 创建套接字
+    int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_sockfd == -1) { error_handling("Socket Error"); }
 
-    /** 
-     * 外层 while：持续监听新的客户端连接。每次接收到新的客户端连接时，进入内层逻辑
-     * 内层 while：保持与当前客户端的会话，直到客户端主动断开或触发退出条件 
-    **/ 
+    // 2. 创建地址信息
+    sockaddr_in server_addr, client_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    // 2. 服务器开始监听
-    while(!SHUT_SERVER) {
-        std::cout << "Waiting For Connections On Port " << PORT << "...\n";
-        KEEP_SERVER = true;
-        
-        // 3. 获取客户端套接字
-        client_fd = accept_client_connection(server_fd);    
-        if (client_fd == -1) {
-            perror("accept failed");
-            KEEP_SERVER = false;
-            continue;
-        }
-        // 保持和当前的客户端持续的交互
-        while(KEEP_SERVER) {
-            // 4. 服务端和客户端交互
-            server_contact_with_client(client_fd);
-        }
-        // 关闭套接字
-        close(client_fd);
+    // 3. 绑定地址信息到套接字
+    if ( bind(server_sockfd, (sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        error_handling("Bind Error");
     }
 
-    // 退出服务端
-    close(server_fd);
+    // 4. 开始监听
+    if (listen(server_sockfd, 5) == -1) {
+        error_handling("Listen Error");
+    }
+    else {
+        std::cout << "Start Liseting on PORT : " << PORT << " ...\n";
+    }
+
+    // 5. 获取客户端的套接字
+    socklen_t client_addr_len = sizeof(client_addr);
+    int client_sockfd = accept(server_sockfd, (sockaddr *)&server_addr, &client_addr_len);
+    if (client_sockfd == -1)
+        error_handling("Accpet Error");
+    else {
+        std::cout << "Connect From -> " 
+                << inet_ntoa(client_addr.sin_addr)   // 转换为字符串 IP 地址
+                << " : " 
+                << ntohs(client_addr.sin_port)       // 转换为主机字节序的端口号
+                << std::endl;
+    }
+
+    // 6. 接受客户端发送的数据
+    std::vector<char> buf (1024);
+    int recv_len = recv(client_sockfd, buf.data(), buf.size(), 0);
+    if (recv_len > 0) {
+        std:: cout << "Client says: " << 
+            std::string(buf.begin(), buf.begin() + recv_len) << std::endl;
+        // 7. 恢复客户端，收到的数据
+        buf.clear();
+        int send_len  = send(server_sockfd, buf.data(), buf.size(), 0);
+        if (send_len == -1) { error_handling("Reply Error"); }
+    }
+    else if (recv_len == 0) {
+        std::cout << "Client disconnecting ...\n";
+    }
+    else { error_handling("Recv Error"); }
+
+    close(client_sockfd);
+    close(server_sockfd);
 
     return 0;
 }
