@@ -26,7 +26,7 @@ int main() {
 
     // 5. 获取客户端的套接字
     socklen_t client_addr_len = sizeof(client_addr);
-    int client_sockfd = accept(server_sockfd, (sockaddr *)&server_addr, &client_addr_len);
+    int client_sockfd = accept(server_sockfd, (sockaddr *)&client_addr, &client_addr_len);
     if (client_sockfd == -1)
         error_handling("Accpet Error");
     else {
