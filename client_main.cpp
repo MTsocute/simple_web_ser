@@ -21,9 +21,10 @@ int main() {
     } else { std::cout << "Conneted with Server\n"; }
 
     // 4. 发送数据
-    std::vector<char> msg(1024);
-    msg.clear();
-    auto send_len = send(client_sockfd, msg.data(), msg.size(), 0);
+    std::vector<char> msg(1024); msg.clear();
+    std::string msg_to_server = "123321";
+    auto send_len = send(client_sockfd, 
+            msg_to_server.data(), msg_to_server.size(), 0);
     if (send_len == -1) { error_handling("Send Error"); }
 
     // 5. 等待服务器的回应
