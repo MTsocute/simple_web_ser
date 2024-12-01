@@ -20,18 +20,32 @@ int main() {
         error_handling("Connect Error");
     } else { std::cout << "Conneted with Server\n"; }
 
-    // 4. 发送数据
-    std::vector<char> msg(1024); msg.clear();
-    std::string msg_to_server = "123321";
-    auto send_len = send(client_sockfd, 
-            msg_to_server.data(), msg_to_server.size(), 0);
-    if (send_len == -1) { error_handling("Send Error"); }
+    std::vector<char> reply_msg(1024); reply_msg.clear();
 
-    // 5. 等待服务器的回应
-    msg.clear();
-    auto recv_len = recv(client_sockfd, msg.data(), msg.size(), 0);
-    if (recv_len == -1) { error_handling("Receive Error"); }
+    // TODO: 实现一个 ECHO
+    while (true) {
+        std::string msg_to_server;
+        msg_to_server.clear();
+        std::cout << "Input Something:\n";
+        std::cin >> msg_to_server;
 
+        if (msg_to_server != "q" or msg_to_server != "Q") {
+            // 4. 发送数据
+            auto send_len = send(client_sockfd, 
+                    msg_to_server.data(), msg_to_server.size(), 0);
+            if (send_len == -1) { error_handling("Send Error"); }
+            // 5. 等待服务器的回应
+            reply_msg.clear();
+            auto recv_len = recv(client_sockfd, reply_msg.data(), reply_msg.size(), 0);
+            if (recv_len == -1) { error_handling("Receive Error"); }
+        }
+        else {
+            msg_to_server = "Client Shoutdown\n";
+            auto send_len = send(client_sockfd, msg_to_server.data(), msg_to_server.size(), 0);
+            if (send_len == -1) { error_handling("Send Error"); }
+            break;
+        }
+    }
 
     // 6. 完成一次简单通讯，关闭通信
     close(client_sockfd);
