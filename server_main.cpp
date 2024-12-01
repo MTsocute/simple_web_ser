@@ -31,28 +31,31 @@ int main() {
         if (client_sockfd == -1)
             error_handling("Accpet Error");
         else {
-            std::cout << "Connect From -> " 
+            std::cout << "New Connection from " 
+                    << i + 1 << " - "
                     << inet_ntoa(client_addr.sin_addr)   // 转换为字符串 IP 地址
                     << " : " 
                     << ntohs(client_addr.sin_port)       // 转换为主机字节序的端口号
                     << std::endl;
         }
 
-        std::vector<char> buf (1024); buf.clear();
-        int recv_len = recv(client_sockfd, buf.data(), buf.size(), 0);
-        if (recv_len > 0) {
-            // 6. 接受客户端发送的数据
-            auto client_send = std::string(buf.begin(), buf.begin() + recv_len);
-            std:: cout << "Client says: " << client_send << std::endl;
-            // 7. 回复客户端，收到的数据
-            int send_len  = send(server_sockfd, client_send.c_str(), client_send.size(), 0);
-            if (send_len == -1) { error_handling("Reply Error"); }
-        }
-        else if (recv_len == 0) {
-            std::cout << "Client disconnecting ...\n";
-        }
-        else { error_handling("Recv Error"); }
+        std::vector<char> buf(1024);        // 缓存空间
 
+        // 处理客户端通信
+        while (true) {
+            auto recv_len = recv(client_sockfd, buf.data(), buf.size(), 0);
+            if (recv_len > 0) {
+                std::string reply(buf.data(), recv_len);
+                std::cout << "The Client says: " << reply << std::endl;
+                auto send_len = send(client_sockfd, reply.c_str(), reply.size(), 0);
+                if (send_len == -1) error_handling("Send Error");
+            }
+            else if (recv_len == 0) {
+                std::cout << "The Client disconnecting... \n";
+                break;
+            }
+            else error_handling("Recv Error");;
+        }
         close(client_sockfd);
     }
     
