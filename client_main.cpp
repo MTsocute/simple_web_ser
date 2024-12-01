@@ -20,35 +20,53 @@ int main() {
         error_handling("Connect Error");
     } else { std::cout << "Conneted with Server\n"; }
 
-    std::vector<char> reply_msg(1024); reply_msg.clear();
+    // TODO: 这里应该有一个前置，如果服务器没有发送可以通信的请求，不进入输入数据
 
-    // TODO: 实现一个 ECHO
     while (true) {
         std::string msg_to_server;
         msg_to_server.clear();
-        std::cout << "Input Something:\n";
-        std::cin >> msg_to_server;
+        std::cout << "Input Something: ";
+        std::getline(std::cin, msg_to_server);
 
-        if (msg_to_server != "q" or msg_to_server != "Q") {
+        if (msg_to_server.empty()) { // 检查输入是否为空
+            std::cout << "Message cannot be empty. Try again.\n";
+            continue;
+        }
+
+        // 检测用户是否要主动退出
+        if (msg_to_server == "q" or msg_to_server == "Q") {
+            // 发一个空的过去，然后就会自动显示退出了
+            auto send_len = send(client_sockfd, 
+                            msg_to_server.data(), msg_to_server.size(), 0);
+            std::cout << "Client shutdown...\n";
+            if (send_len == -1) { 
+                close(client_sockfd);
+                error_handling("Send Error"); 
+            }
+            // 6. 完成一次简单通讯，关闭通信
+            close(client_sockfd);
+            break;
+        }
+        else {
             // 4. 发送数据
             auto send_len = send(client_sockfd, 
                     msg_to_server.data(), msg_to_server.size(), 0);
             if (send_len == -1) { error_handling("Send Error"); }
+            
             // 5. 等待服务器的回应
-            reply_msg.clear();
+            std::vector<char> reply_msg(1024);
             auto recv_len = recv(client_sockfd, reply_msg.data(), reply_msg.size(), 0);
-            if (recv_len == -1) { error_handling("Receive Error"); }
-        }
-        else {
-            msg_to_server = "Client Shoutdown\n";
-            auto send_len = send(client_sockfd, msg_to_server.data(), msg_to_server.size(), 0);
-            if (send_len == -1) { error_handling("Send Error"); }
-            break;
+            if (recv_len > 0) {
+                std::cout << "The Server replys: "
+                          << std::string(reply_msg.begin(), reply_msg.begin() + recv_len) << std::endl;
+            }
+            else if (recv_len == 0) {
+                std::cout << "Server is disconnecting\n";
+                close(client_sockfd);
+                break;
+            }
+            else { error_handling("Receive Error"); }
         }
     }
-
-    // 6. 完成一次简单通讯，关闭通信
-    close(client_sockfd);
-
     return 0;
 }
