@@ -6,7 +6,7 @@ int main() {
     if (server_sockfd == -1) { error_handling("Socket Error"); }
 
     // 2. 创建地址信息
-    sockaddr_in server_addr, client_addr;
+sockaddr_in server_addr, client_addr;
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = INADDR_ANY;
