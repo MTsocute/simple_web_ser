@@ -27,6 +27,6 @@ else()
                 src/Server.cpp
         )
         add_executable(multi_thread ./multi_server.cpp ./src/Server.cpp)
-        target_include_directories(web_client PRIVATE "./include/")
+        target_include_directories(web_server PRIVATE "./include/")
         target_include_directories(multi_thread PRIVATE "./include/")
 endif()

@@ -7,7 +7,7 @@
 
 #include <unistd.h>
 #include <sys/wait.h>
-#include <signal.h>
+#include <csignal>
 #include <iostream>
 #include <vector>
 #include <arpa/inet.h>
@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <chrono>
 #include <cstdint>
+#include <signal.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 // 监听端口，如果你是云服务器，请确保打开服务端的防火墙
 #define PORT 10000
@@ -29,10 +32,9 @@ private:
     int _port;
     sockaddr_in _server_addr, _client_addr;
     int _server_sockfd, _client_sockfd;
-    struct sigaction _act;
     std::string buf;
+    struct sigaction _act;
 public:
-    // explicit TCP_Server() = default;
     explicit TCP_Server(int port);
 
     TCP_Server(const TCP_Server &other) = delete;

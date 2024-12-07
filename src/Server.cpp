@@ -23,14 +23,14 @@ void read_child_proc(int sig)
 TCP_Server::TCP_Server(int port) : _port(port)
 {
     this->buf.resize(1024);
-
     this->_server_addr.sin_family = AF_INET;
     this->_server_addr.sin_port = htons(this->_port);
     this->_server_addr.sin_addr.s_addr = INADDR_ANY;
     this->_server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     // 初始化信号处理函数
-    this->_act.__sigaction_u.__sa_handler = read_child_proc;
+    memset(&this->_act, 0 ,sizeof(this->_act));
+    this->_act.sa_handler = read_child_proc;
     sigemptyset(&this->_act.sa_mask);
     this->_act.sa_flags = 0;
 
@@ -39,7 +39,6 @@ TCP_Server::TCP_Server(int port) : _port(port)
     else
         std::cout << "服务器初始化完毕\n";
 }
-
 
 void TCP_Server::bind_addr_info() {
         if (bind(this->_server_sockfd, (sockaddr *)&this->_server_addr, 
@@ -60,14 +59,11 @@ void TCP_Server::start_listening() {
         }
 }
 
-void TCP_Server::handle_with_client()
-{
-    while (true)
-    {
+void TCP_Server::handle_with_client(){
+    while (true) {
         socklen_t client_addr_len = sizeof(this->_client_addr);
         this->_client_sockfd = accept(_server_sockfd, (sockaddr *)&this->_client_addr, &client_addr_len);
         if (this->_client_sockfd == -1) {
-            std::cout << "I am Free~~~\n";
             continue;
         }
         else {
@@ -79,7 +75,13 @@ void TCP_Server::handle_with_client()
                 << std::endl;   
         }
 
-        sigaction(SIGCHLD, &this->_act, 0); //  捕捉子进程结束信号
+        //  捕捉子进程结束信号
+        if (sigaction(SIGCHLD, &this->_act, 0) == -1) {
+            close(this->_client_sockfd);
+            std::cout << "sign 创建失败\n";
+            continue;    
+        } 
+        
         pid_t PID = fork();
         // 创建子进程失败
         if (PID == -1)
